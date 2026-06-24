@@ -1,5 +1,5 @@
-#vikunja-feature-button {
-  margin-right: 8px;
+#vikunja-feature-button.vf-ticket-action-button {
+  white-space: nowrap;
 }
 
 .vf-modal-backdrop {

@@ -113,15 +113,22 @@
 
   function addButton() {
     if (qs('#vikunja-feature-button')) return;
-    const target = qs('.content .pull-right.flush-right') || qs('.pull-right.flush-right');
+    const target = qs('.sticky.bar .content > .pull-right.flush-right');
     if (!target) return;
-    const button = document.createElement('button');
+    const button = document.createElement('a');
     button.id = 'vikunja-feature-button';
-    button.type = 'button';
-    button.className = 'action-button';
-    button.textContent = 'Send to Vikunja';
-    button.addEventListener('click', openModal);
-    target.insertBefore(button, target.firstChild);
+    button.href = '#';
+    button.className = 'action-button pull-right vf-ticket-action-button';
+    button.setAttribute('data-placement', 'bottom');
+    button.setAttribute('data-toggle', 'tooltip');
+    const buttonText = cfg.buttonText || 'Move to Projects';
+    button.setAttribute('title', buttonText);
+    button.textContent = buttonText;
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      openModal();
+    });
+    target.appendChild(button);
   }
 
   if (document.readyState === 'loading') {

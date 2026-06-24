@@ -97,6 +97,7 @@ Open the plugin configuration screen and set:
 |---|---|---|
 | Vikunja URL | Base URL for Vikunja | `http://192.168.2.180:8083` |
 | Vikunja API Token | Bearer token used for API calls | `tk_...` |
+| Ticket Button Text | Staff ticket action button label | `Move to Projects` |
 | Feature Request Help Topic | Exact osTicket help topic name | `Feature Request` |
 | Resolved Status | Exact osTicket ticket status name | `Resolved` |
 | Ticket Response | Public reply posted before resolving | Default response text |
@@ -119,7 +120,7 @@ In Vikunja:
 ## Staff Workflow
 
 1. Open an active ticket in osTicket staff panel.
-2. Click **Send to Vikunja**.
+2. Click **Move to Projects** — or your configured button label.
 3. Select a Vikunja project from the dropdown, or type a new project name.
 4. Click **Send to Vikunja & Resolve**.
 5. The plugin will:

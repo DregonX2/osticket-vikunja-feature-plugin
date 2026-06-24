@@ -19,6 +19,13 @@ class VikunjaFeatureRequestPluginConfig extends PluginConfig {
                 'hint' => 'A Vikunja API token with permission to list/create projects and create tasks.',
                 'required' => true,
             )),
+            'button_text' => new TextboxField(array(
+                'label' => 'Ticket Button Text',
+                'configuration' => array('size' => 40, 'length' => 80),
+                'default' => 'Move to Projects',
+                'hint' => 'Text shown on the ticket action button.',
+                'required' => true,
+            )),
             'feature_help_topic' => new TextboxField(array(
                 'label' => 'Feature Request Help Topic',
                 'configuration' => array('size' => 40, 'length' => 128),
@@ -72,7 +79,8 @@ class VikunjaFeatureRequestPlugin extends Plugin {
         if ($css) {
             echo "\n<style id=\"vikunja-feature-request-css\">\n" . $css . "\n</style>\n";
         }
-        echo sprintf("<script>window.VIKUNJA_FEATURE_REQUEST = {ticketId:%d, ajaxBase:%s};</script>\n", (int) $_GET['id'], json_encode($this->getAjaxBaseUrl()));
+        $buttonText = trim((string) $this->getConfig()->get('button_text')) ?: 'Move to Projects';
+        echo sprintf("<script>window.VIKUNJA_FEATURE_REQUEST = {ticketId:%d, ajaxBase:%s, buttonText:%s};</script>\n", (int) $_GET['id'], json_encode($this->getAjaxBaseUrl()), json_encode($buttonText));
         if ($js) {
             echo "<script id=\"vikunja-feature-request-js\">\n" . $js . "\n</script>\n";
         }
