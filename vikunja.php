@@ -1,0 +1,94 @@
+<?php
+
+require_once INCLUDE_DIR . 'class.plugin.php';
+require_once __DIR__ . '/include/class.VikunjaClient.php';
+require_once __DIR__ . '/include/class.FeatureRequestController.php';
+
+class VikunjaFeatureRequestPluginConfig extends PluginConfig {
+    public function getOptions() {
+        return array(
+            'vikunja_url' => new TextboxField(array(
+                'label' => 'Vikunja URL',
+                'configuration' => array('size' => 60, 'length' => 255),
+                'hint' => 'Base URL of your Vikunja instance, e.g. http://192.168.2.180:8083',
+                'required' => true,
+            )),
+            'vikunja_token' => new TextareaField(array(
+                'label' => 'Vikunja API Token',
+                'configuration' => array('html' => false, 'rows' => 4, 'cols' => 70),
+                'hint' => 'A Vikunja API token with permission to list/create projects and create tasks.',
+                'required' => true,
+            )),
+            'feature_help_topic' => new TextboxField(array(
+                'label' => 'Feature Request Help Topic',
+                'configuration' => array('size' => 40, 'length' => 128),
+                'default' => 'Feature Request',
+                'hint' => 'Exact osTicket help topic name to set after exporting.',
+                'required' => true,
+            )),
+            'resolved_status' => new TextboxField(array(
+                'label' => 'Resolved Status',
+                'configuration' => array('size' => 40, 'length' => 128),
+                'default' => 'Resolved',
+                'hint' => 'Exact osTicket status name to set after exporting.',
+                'required' => true,
+            )),
+            'ticket_response' => new TextareaField(array(
+                'label' => 'Ticket Response',
+                'configuration' => array('html' => false, 'rows' => 5, 'cols' => 70),
+                'default' => 'Since this is a feature request, we are moving it to our Project tracker and closing this ticket. Thank you for your suggestion.',
+                'hint' => 'Public response posted to the ticket after the Vikunja task is created.',
+                'required' => true,
+            )),
+        );
+    }
+}
+
+class VikunjaFeatureRequestPlugin extends Plugin {
+    public $config_class = 'VikunjaFeatureRequestPluginConfig';
+
+    public function bootstrap() {
+        $this->registerRoutes();
+        $this->injectStaffAssets();
+    }
+
+    protected function registerRoutes() {
+        Signal::connect('ajax.scp', array($this, 'ajax'));
+    }
+
+    protected function injectStaffAssets() {
+        if (!defined('INCLUDE_DIR') || !isset($_SERVER['SCRIPT_NAME'])) {
+            return;
+        }
+
+        $script = $_SERVER['SCRIPT_NAME'];
+        $isTicketPage = strpos($script, '/scp/tickets.php') !== false;
+        if (!$isTicketPage || empty($_GET['id'])) {
+            return;
+        }
+
+        $base = $this->getPluginBaseUrl();
+        echo sprintf("\n<link rel=\"stylesheet\" href=\"%scss/vikunja-feature.css?v=1.0.0\">\n", Format::htmlchars($base));
+        echo sprintf("<script>window.VIKUNJA_FEATURE_REQUEST = {ticketId:%d, ajaxBase:%s};</script>\n", (int) $_GET['id'], json_encode($this->getAjaxBaseUrl()));
+        echo sprintf("<script src=\"%sjs/vikunja-feature.js?v=1.0.0\"></script>\n", Format::htmlchars($base));
+    }
+
+    protected function getPluginBaseUrl() {
+        return ROOT_PATH . 'include/plugins/vikunja-feature-request/';
+    }
+
+    protected function getAjaxBaseUrl() {
+        return ROOT_PATH . 'scp/ajax.php/vikunja-feature-request';
+    }
+
+    public function ajax($object, $data) {
+        $path = isset($_SERVER['PATH_INFO']) ? trim($_SERVER['PATH_INFO'], '/') : '';
+        if (strpos($path, 'vikunja-feature-request') !== 0) {
+            return;
+        }
+
+        $controller = new VikunjaFeatureRequestController($this->getConfig());
+        $controller->dispatch($path);
+        exit;
+    }
+}
