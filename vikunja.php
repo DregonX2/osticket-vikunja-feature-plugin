@@ -67,14 +67,15 @@ class VikunjaFeatureRequestPlugin extends Plugin {
             return;
         }
 
-        $base = $this->getPluginBaseUrl();
-        echo sprintf("\n<link rel=\"stylesheet\" href=\"%scss/vikunja-feature.css?v=1.0.0\">\n", Format::htmlchars($base));
+        $css = @file_get_contents(__DIR__ . '/css/vikunja-feature.css');
+        $js = @file_get_contents(__DIR__ . '/js/vikunja-feature.js');
+        if ($css) {
+            echo "\n<style id=\"vikunja-feature-request-css\">\n" . $css . "\n</style>\n";
+        }
         echo sprintf("<script>window.VIKUNJA_FEATURE_REQUEST = {ticketId:%d, ajaxBase:%s};</script>\n", (int) $_GET['id'], json_encode($this->getAjaxBaseUrl()));
-        echo sprintf("<script src=\"%sjs/vikunja-feature.js?v=1.0.0\"></script>\n", Format::htmlchars($base));
-    }
-
-    protected function getPluginBaseUrl() {
-        return ROOT_PATH . 'include/plugins/vikunja-feature-request/';
+        if ($js) {
+            echo "<script id=\"vikunja-feature-request-js\">\n" . $js . "\n</script>\n";
+        }
     }
 
     protected function getAjaxBaseUrl() {
