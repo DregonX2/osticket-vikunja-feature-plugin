@@ -120,10 +120,11 @@ class VikunjaFeatureRequestController {
         $ticketUrl = $this->ticketUrl($ticket);
         $thread = $this->ticketThreadText($ticket);
 
-        $description = "Imported from osTicket ticket #" . $ticket->getNumber() . "\n\n";
-        $description .= "Original ticket: " . $ticketUrl . "\n";
-        $description .= "Assigned to in osTicket: " . $assignedTo . "\n";
-        $description .= "Exported by: " . $staff->getName() . "\n\n";
+        $description = "# osTicket Feature Request\n\n";
+        $description .= "- **Ticket:** #" . $this->markdownInline($ticket->getNumber()) . "\n";
+        $description .= "- **Original ticket:** " . $ticketUrl . "\n";
+        $description .= "- **Assigned to in osTicket:** " . $this->markdownInline($assignedTo) . "\n";
+        $description .= "- **Exported by:** " . $this->markdownInline($staff->getName()) . "\n\n";
         $description .= "## Ticket Thread\n\n" . $thread;
 
         return array(
@@ -213,14 +214,53 @@ class VikunjaFeatureRequestController {
             $author = method_exists($entry, 'getName') ? $entry->getName() : 'Unknown';
             $created = method_exists($entry, 'getCreateDate') ? $entry->getCreateDate() : '';
             $body = method_exists($entry, 'getBody') ? $entry->getBody() : '';
-            $body = trim(html_entity_decode(strip_tags($body), ENT_QUOTES, 'UTF-8'));
+            $body = $this->htmlToMarkdownText($body);
             if ($body === '') {
                 continue;
             }
-            $lines[] = '### ' . $author . ($created ? ' - ' . $created : '') . "\n\n" . $body;
+            $heading = $this->markdownInline($author) . ($created ? ' — ' . $this->markdownInline($created) : '');
+            $lines[] = '### ' . $heading . "\n\n" . $this->markdownBlockquote($body);
         }
 
         return $lines ? implode("\n\n---\n\n", $lines) : '_No thread content found._';
+    }
+
+    private function htmlToMarkdownText($html) {
+        $text = (string) $html;
+        $text = preg_replace('/<\s*br\s*\/?>/i', "\n", $text);
+        $text = preg_replace('/<\s*\/p\s*>/i', "\n\n", $text);
+        $text = preg_replace('/<\s*\/div\s*>/i', "\n", $text);
+        $text = preg_replace_callback('/<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is', function ($matches) {
+            $label = trim(html_entity_decode(strip_tags($matches[2]), ENT_QUOTES, 'UTF-8'));
+            $url = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
+            if ($label === '') {
+                $label = $url;
+            }
+            return '[' . str_replace(array('[', ']'), array('\\[', '\\]'), $label) . '](' . str_replace(')', '%29', $url) . ')';
+        }, $text);
+        $text = html_entity_decode(strip_tags($text), ENT_QUOTES, 'UTF-8');
+        $text = preg_replace("/\r\n|\r/", "\n", $text);
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);
+        return trim($text);
+    }
+
+    private function markdownBlockquote($text) {
+        $text = trim((string) $text);
+        if ($text === '') {
+            return '';
+        }
+        $lines = explode("\n", $text);
+        foreach ($lines as &$line) {
+            $line = '> ' . rtrim($line);
+        }
+        unset($line);
+        return implode("\n", $lines);
+    }
+
+    private function markdownInline($text) {
+        $text = html_entity_decode(strip_tags((string) $text), ENT_QUOTES, 'UTF-8');
+        $text = preg_replace('/\s+/', ' ', trim($text));
+        return str_replace(array('\\', '`', '*', '_', '[', ']', '#'), array('\\\\', '\\`', '\\*', '\\_', '\\[', '\\]', '\\#'), $text);
     }
 
     private function flattenProjects(array $projects) {
