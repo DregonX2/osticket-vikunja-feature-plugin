@@ -90,6 +90,7 @@ class VikunjaFeatureRequestController {
 
         $task = $this->buildTaskPayload($ticket, $thisstaff);
         $createdTask = $client->createTask($projectId, $task);
+        $this->tagCreatedTask($client, $createdTask);
 
         $this->updateTicketAfterExport($ticket, $thisstaff, $createdTask);
 
@@ -99,6 +100,18 @@ class VikunjaFeatureRequestController {
             'redirect' => $this->queueRedirectUrl(),
             'task' => $createdTask,
         );
+    }
+
+    private function tagCreatedTask(VikunjaClient $client, array $createdTask) {
+        if (empty($createdTask['id'])) {
+            throw new Exception('Vikunja did not return a task id for tagging.');
+        }
+        $labelTitle = trim((string) $this->config->get('vikunja_label')) ?: 'support';
+        $label = $client->ensureLabel($labelTitle);
+        if (empty($label['id'])) {
+            throw new Exception('Vikunja did not return a label id for tag: ' . $labelTitle);
+        }
+        $client->addLabelToTask($createdTask['id'], $label['id']);
     }
 
     private function buildTaskPayload($ticket, $staff) {

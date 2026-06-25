@@ -26,6 +26,39 @@ class VikunjaClient {
         return $this->request('PUT', '/api/v1/projects/' . rawurlencode($projectId) . '/tasks', $task);
     }
 
+    public function ensureLabel($title, $hexColor = '0d6efd') {
+        $title = trim((string) $title);
+        if ($title === '') {
+            throw new Exception('Vikunja label title is required.');
+        }
+
+        $labels = $this->request('GET', '/api/v1/labels?s=' . rawurlencode($title));
+        foreach ($labels as $label) {
+            if (isset($label['title']) && strcasecmp($label['title'], $title) === 0) {
+                return $label;
+            }
+        }
+
+        return $this->request('PUT', '/api/v1/labels', array(
+            'title' => $title,
+            'description' => 'Imported from osTicket support workflow.',
+            'hex_color' => $hexColor,
+        ));
+    }
+
+    public function addLabelToTask($taskId, $labelId) {
+        try {
+            return $this->request('PUT', '/api/v1/tasks/' . rawurlencode($taskId) . '/labels', array(
+                'label_id' => (int) $labelId,
+            ));
+        } catch (Exception $e) {
+            if (strpos($e->getMessage(), 'already') !== false) {
+                return array('ok' => true, 'message' => 'Label already attached.');
+            }
+            throw $e;
+        }
+    }
+
     private function request($method, $path, array $payload = null) {
         if (!$this->baseUrl || !$this->token) {
             throw new Exception('Vikunja URL and API token are required.');

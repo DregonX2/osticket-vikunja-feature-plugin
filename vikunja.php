@@ -26,6 +26,13 @@ class VikunjaFeatureRequestPluginConfig extends PluginConfig {
                 'hint' => 'Text shown on the ticket action button.',
                 'required' => true,
             )),
+            'vikunja_label' => new TextboxField(array(
+                'label' => 'Vikunja Label',
+                'configuration' => array('size' => 40, 'length' => 80),
+                'default' => 'support',
+                'hint' => 'Label/tag applied to every Vikunja task created by this plugin.',
+                'required' => true,
+            )),
             'feature_help_topic' => new TextboxField(array(
                 'label' => 'Feature Request Help Topic',
                 'configuration' => array('size' => 40, 'length' => 128),

@@ -98,6 +98,7 @@ Open the plugin configuration screen and set:
 | Vikunja URL | Base URL for Vikunja | `http://192.168.2.180:8083` |
 | Vikunja API Token | Bearer token used for API calls | `tk_...` |
 | Ticket Button Text | Staff ticket action button label | `Move to Projects` |
+| Vikunja Label | Label/tag added to every created Vikunja task | `support` |
 | Feature Request Help Topic | Exact osTicket help topic name | `Feature Request` |
 | Resolved Status | Exact osTicket ticket status name | `Resolved` |
 | Ticket Response | Public reply posted before resolving | Default response text |
@@ -125,6 +126,7 @@ In Vikunja:
 4. Click **Send to Vikunja & Resolve**.
 5. The plugin will:
    - Create the Vikunja task
+   - Ensure/apply the configured Vikunja label, default `support`
    - Update the help topic
    - Assign the ticket to the current staff user
    - Post the configured response
