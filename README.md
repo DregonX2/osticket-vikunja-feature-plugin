@@ -1,6 +1,6 @@
 # osTicket → Vikunja Feature Request Exporter
 
-A staff-side osTicket v1.18 plugin that adds a **Send to Vikunja** button to open tickets. Staff can select an existing Vikunja project, create a new project, and export the ticket as a Vikunja task. After successful export, the plugin automatically updates the osTicket ticket workflow.
+A staff-side osTicket v1.18 plugin that adds a configurable **Move to Projects** action to open tickets. Staff can select an existing Vikunja project, create a new project, and export the ticket as a rich Vikunja task. After successful export, the plugin labels the Vikunja task, updates the osTicket ticket workflow, and redirects the staff user back to the queue.
 
 Built for the DregonX2 Vikunja custom instance, but configurable for any compatible Vikunja deployment.
 
@@ -10,8 +10,8 @@ Built for the DregonX2 Vikunja custom instance, but configurable for any compati
 
 On open ticket pages in osTicket staff control panel, this plugin:
 
-1. Adds a **Send to Vikunja** button into the ticket action area matching:
-   - `.content .pull-right.flush-right`
+1. Adds a configurable ticket action button, default **Move to Projects**, into the native osTicket ticket toolbar matching:
+   - `.sticky.bar .content > .pull-right.flush-right`
 2. Opens an osTicket modal with:
    - A dropdown of projects queried from Vikunja
    - An option to create a new Vikunja project
@@ -20,7 +20,8 @@ On open ticket pages in osTicket staff control panel, this plugin:
    - Current osTicket assignee
    - Ticket number
    - Ticket staff URL
-   - Full ticket thread text
+   - Full ticket thread rendered as Vikunja-friendly rich HTML
+   - Configured Vikunja label, default `support`
 4. Updates the osTicket ticket after successful Vikunja API creation:
    - Sets help topic to **Feature Request** by default
    - Assigns the ticket to the staff member who clicked the button
@@ -29,6 +30,7 @@ On open ticket pages in osTicket staff control panel, this plugin:
    > Since this is a feature request, we are moving it to our Project tracker and closing this ticket. Thank you for your suggestion.
 
    - Sets status to **Resolved** by default
+   - Redirects the staff user back to `/scp/tickets.php?queue=1`
 
 ---
 
@@ -59,6 +61,8 @@ On open ticket pages in osTicket staff control panel, this plugin:
   - List projects
   - Create projects
   - Create tasks
+  - Read/create labels
+  - Attach labels to tasks
 - A reachable Vikunja instance, e.g.:
   - `http://192.168.2.180:8083`
 
@@ -111,10 +115,19 @@ In Vikunja:
 
 1. Log in as a user that can create tasks/projects.
 2. Open user settings / API tokens.
-3. Create a token with permissions for project and task operations.
+3. Create a token with permissions for project, task, and label operations.
 4. Copy the token into the plugin configuration.
 
-> Keep the token private. It gives osTicket permission to create tasks in Vikunja.
+> Keep the token private. It gives osTicket permission to create projects/tasks and apply labels in Vikunja.
+
+Minimum practical permissions used by the plugin:
+
+| Area | Needed permissions | Why |
+|---|---|---|
+| `projects` | `read_all`, `create` | Populate dropdown and create new project |
+| `tasks` | `create` | Create Vikunja task |
+| `labels` | `read_all`, `read_one`, `create` | Find or create the configured label |
+| `tasks_labels` | `create` | Attach the configured label to the created task |
 
 ---
 
@@ -131,7 +144,7 @@ In Vikunja:
    - Assign the ticket to the current staff user
    - Post the configured response
    - Resolve the ticket
-   - Reload the ticket page
+   - Redirect to `/scp/tickets.php?queue=1`
 
 ---
 
@@ -143,27 +156,35 @@ The created Vikunja task title uses:
 [OSTICKET_NUMBER] Ticket Subject
 ```
 
-The task description includes:
+The task description/details are sent as **rich HTML**, because this Vikunja build stores and renders task descriptions as HTML rather than Markdown. This avoids literal `#`, `**`, and `>` characters showing in the task body.
 
-```markdown
-Imported from osTicket ticket #123456
+Example structure:
 
-Original ticket: /scp/tickets.php?id=123
-Assigned to in osTicket: Agent Name
-Exported by: Staff User
+```html
+<h1>osTicket Feature Request</h1>
+<ul>
+  <li><strong>Ticket:</strong> #123456</li>
+  <li><strong>Original ticket:</strong> <a href="/scp/tickets.php?id=123">/scp/tickets.php?id=123</a></li>
+  <li><strong>Assigned to in osTicket:</strong> Agent Name</li>
+  <li><strong>Exported by:</strong> Staff User</li>
+</ul>
 
-## Ticket Thread
+<h2>Ticket Thread</h2>
 
-### Requester - 2026-06-24 18:00:00
+<h3>Requester — 2026-06-24 18:00:00</h3>
+<blockquote>
+  <p>Original ticket message...</p>
+</blockquote>
 
-Original ticket message...
+<hr>
 
----
-
-### Agent - 2026-06-24 18:05:00
-
-Agent response...
+<h3>Agent — 2026-06-24 18:05:00</h3>
+<blockquote>
+  <p>Agent response...</p>
+</blockquote>
 ```
+
+Ticket thread content is escaped before insertion so requester/staff text cannot inject arbitrary HTML. Basic links from osTicket are preserved as readable text with their URL.
 
 ---
 
@@ -175,6 +196,9 @@ The plugin calls Vikunja with Bearer token auth:
 GET /api/v1/projects
 PUT /api/v1/projects
 PUT /api/v1/projects/{project_id}/tasks
+GET /api/v1/labels?s=support
+PUT /api/v1/labels
+PUT /api/v1/tasks/{task_id}/labels
 ```
 
 The plugin exposes staff-authenticated osTicket ajax routes:
@@ -211,13 +235,13 @@ If your resolved status is named differently, update the plugin setting.
 
 ### Button Placement
 
-The plugin injects the button into:
+The plugin injects the button into the native ticket sticky toolbar:
 
 ```css
-.content .pull-right.flush-right
+.sticky.bar .content > .pull-right.flush-right
 ```
 
-If your osTicket theme has customized the ticket header markup, adjust `js/vikunja-feature.js` in `addButton()`.
+The inserted control uses osTicket toolbar classes (`action-button pull-right`) so it preserves the surrounding button layout. If your production theme has customized the ticket header markup, adjust `js/vikunja-feature.js` in `addButton()` only; no osTicket core edit is required.
 
 ---
 
@@ -270,12 +294,13 @@ The implementation includes light fallbacks for assignment and response posting,
 - Confirm the configured help topic exists exactly.
 - Confirm the configured status exists exactly.
 - Check whether your osTicket install customized ticket workflow APIs.
+- Check Apache/PHP logs for fatal errors from `include/plugins/vikunja-feature-request`.
 
 ### Vikunja returns 401
 
 - Regenerate the Vikunja API token.
 - Confirm the token is pasted without extra whitespace.
-- Confirm the token has permissions to list projects and create tasks.
+- Confirm the token has permissions to list/create projects, create tasks, read/create labels, and attach labels to tasks.
 
 ---
 
@@ -311,7 +336,6 @@ Potential future enhancements:
 
 - Config-screen “Test Connection” button
 - Optional private/internal note instead of public response
-- Optional task labels such as `feature-request` and `osticket`
 - Attachment export from osTicket to Vikunja
 - Store Vikunja task ID back onto the ticket as dynamic field metadata
 - OAuth/service-account support if Vikunja token scopes change
