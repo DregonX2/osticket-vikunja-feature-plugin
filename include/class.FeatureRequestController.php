@@ -126,14 +126,13 @@ class VikunjaFeatureRequestController {
         $response = (string) $this->config->get('ticket_response');
 
         $topic = Topic::lookup(array('topic' => $helpTopicName));
-        if ($topic) {
-            $ticket->setHelpTopicId($topic->getId());
+        if (!$topic) {
+            throw new Exception('osTicket help topic not found: ' . $helpTopicName);
         }
+        $this->setTicketHelpTopic($ticket, $topic);
 
         if (method_exists($ticket, 'assignToStaff')) {
             $ticket->assignToStaff($staff->getId(), 'Assigned automatically while exporting feature request to Vikunja.', true);
-        } elseif (method_exists($ticket, 'assign')) {
-            $ticket->assign($staff, 'Assigned automatically while exporting feature request to Vikunja.', true);
         }
 
         $taskUrl = isset($task['id']) ? $this->taskUrl($task) : '';
@@ -147,19 +146,46 @@ class VikunjaFeatureRequestController {
                 'signature' => 'none',
                 'reply-to' => '',
             );
-            $ticket->postReply($vars, $errors, $staff);
+            if (!$ticket->postReply($vars, $errors, true, false)) {
+                throw new Exception('Unable to post osTicket response: ' . $this->formatErrors($errors));
+            }
         } elseif (method_exists($ticket, 'postNote')) {
-            $ticket->postNote('Feature request moved to Vikunja', $response, $staff);
+            $noteVars = array('title' => 'Feature request moved to Vikunja', 'note' => $response);
+            if (!$ticket->postNote($noteVars, $errors, $staff, false)) {
+                throw new Exception('Unable to post osTicket note: ' . $this->formatErrors($errors));
+            }
         }
 
         $status = TicketStatus::lookup(array('name' => $statusName));
-        if ($status && method_exists($ticket, 'setStatus')) {
-            $ticket->setStatus($status);
+        if (!$status) {
+            throw new Exception('osTicket status not found: ' . $statusName);
+        }
+        if (method_exists($ticket, 'setStatus') && !$ticket->setStatus($status, 'Moved to Vikunja project tracker.', $errors)) {
+            throw new Exception('Unable to set osTicket status: ' . $this->formatErrors($errors));
         }
 
         if (method_exists($ticket, 'save')) {
             $ticket->save();
         }
+    }
+
+    private function setTicketHelpTopic($ticket, $topic) {
+        if (!defined('TICKET_TABLE')) {
+            throw new Exception('osTicket ticket table constant is unavailable.');
+        }
+        $sql = 'UPDATE ' . TICKET_TABLE . ' SET topic_id=' . db_input($topic->getId()) . ' WHERE ticket_id=' . db_input($ticket->getId());
+        if (!db_query($sql)) {
+            throw new Exception('Unable to update osTicket help topic.');
+        }
+    }
+
+    private function formatErrors(array $errors) {
+        if (!$errors) {
+            return 'unknown error';
+        }
+        return implode('; ', array_map(function ($key, $value) {
+            return is_string($key) ? $key . ': ' . $value : $value;
+        }, array_keys($errors), $errors));
     }
 
     private function ticketThreadText($ticket) {
