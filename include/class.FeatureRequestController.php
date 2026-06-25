@@ -120,12 +120,14 @@ class VikunjaFeatureRequestController {
         $ticketUrl = $this->ticketUrl($ticket);
         $thread = $this->ticketThreadText($ticket);
 
-        $description = "# osTicket Feature Request\n\n";
-        $description .= "- **Ticket:** #" . $this->markdownInline($ticket->getNumber()) . "\n";
-        $description .= "- **Original ticket:** " . $ticketUrl . "\n";
-        $description .= "- **Assigned to in osTicket:** " . $this->markdownInline($assignedTo) . "\n";
-        $description .= "- **Exported by:** " . $this->markdownInline($staff->getName()) . "\n\n";
-        $description .= "## Ticket Thread\n\n" . $thread;
+        $description = '<h1>osTicket Feature Request</h1>';
+        $description .= '<ul>';
+        $description .= '<li><strong>Ticket:</strong> #' . $this->html($ticket->getNumber()) . '</li>';
+        $description .= '<li><strong>Original ticket:</strong> <a href="' . $this->htmlAttr($ticketUrl) . '">' . $this->html($ticketUrl) . '</a></li>';
+        $description .= '<li><strong>Assigned to in osTicket:</strong> ' . $this->html($assignedTo) . '</li>';
+        $description .= '<li><strong>Exported by:</strong> ' . $this->html($staff->getName()) . '</li>';
+        $description .= '</ul>';
+        $description .= '<h2>Ticket Thread</h2>' . $thread;
 
         return array(
             'title' => '[' . $ticket->getNumber() . '] ' . $ticket->getSubject(),
@@ -214,18 +216,18 @@ class VikunjaFeatureRequestController {
             $author = method_exists($entry, 'getName') ? $entry->getName() : 'Unknown';
             $created = method_exists($entry, 'getCreateDate') ? $entry->getCreateDate() : '';
             $body = method_exists($entry, 'getBody') ? $entry->getBody() : '';
-            $body = $this->htmlToMarkdownText($body);
+            $body = $this->htmlToPlainText($body);
             if ($body === '') {
                 continue;
             }
-            $heading = $this->markdownInline($author) . ($created ? ' — ' . $this->markdownInline($created) : '');
-            $lines[] = '### ' . $heading . "\n\n" . $this->markdownBlockquote($body);
+            $heading = $this->html($author) . ($created ? ' — ' . $this->html($created) : '');
+            $lines[] = '<h3>' . $heading . '</h3><blockquote>' . $this->paragraphsHtml($body) . '</blockquote>';
         }
 
-        return $lines ? implode("\n\n---\n\n", $lines) : '_No thread content found._';
+        return $lines ? implode('<hr>', $lines) : '<p><em>No thread content found.</em></p>';
     }
 
-    private function htmlToMarkdownText($html) {
+    private function htmlToPlainText($html) {
         $text = (string) $html;
         $text = preg_replace('/<\s*br\s*\/?>/i', "\n", $text);
         $text = preg_replace('/<\s*\/p\s*>/i', "\n\n", $text);
@@ -233,10 +235,7 @@ class VikunjaFeatureRequestController {
         $text = preg_replace_callback('/<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is', function ($matches) {
             $label = trim(html_entity_decode(strip_tags($matches[2]), ENT_QUOTES, 'UTF-8'));
             $url = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
-            if ($label === '') {
-                $label = $url;
-            }
-            return '[' . str_replace(array('[', ']'), array('\\[', '\\]'), $label) . '](' . str_replace(')', '%29', $url) . ')';
+            return $label && $label !== $url ? $label . ' (' . $url . ')' : $url;
         }, $text);
         $text = html_entity_decode(strip_tags($text), ENT_QUOTES, 'UTF-8');
         $text = preg_replace("/\r\n|\r/", "\n", $text);
@@ -244,23 +243,25 @@ class VikunjaFeatureRequestController {
         return trim($text);
     }
 
-    private function markdownBlockquote($text) {
-        $text = trim((string) $text);
-        if ($text === '') {
-            return '';
+    private function paragraphsHtml($text) {
+        $paragraphs = preg_split('/\n\s*\n/', trim((string) $text));
+        $html = array();
+        foreach ($paragraphs as $paragraph) {
+            $paragraph = trim($paragraph);
+            if ($paragraph === '') {
+                continue;
+            }
+            $html[] = '<p>' . nl2br($this->html($paragraph), false) . '</p>';
         }
-        $lines = explode("\n", $text);
-        foreach ($lines as &$line) {
-            $line = '> ' . rtrim($line);
-        }
-        unset($line);
-        return implode("\n", $lines);
+        return implode('', $html);
     }
 
-    private function markdownInline($text) {
-        $text = html_entity_decode(strip_tags((string) $text), ENT_QUOTES, 'UTF-8');
-        $text = preg_replace('/\s+/', ' ', trim($text));
-        return str_replace(array('\\', '`', '*', '_', '[', ']', '#'), array('\\\\', '\\`', '\\*', '\\_', '\\[', '\\]', '\\#'), $text);
+    private function html($text) {
+        return htmlspecialchars((string) $text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    private function htmlAttr($text) {
+        return htmlspecialchars((string) $text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
     private function flattenProjects(array $projects) {
