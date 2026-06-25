@@ -42,9 +42,15 @@
 .vf-modal input {
   width: 100%;
   box-sizing: border-box;
+  min-height: 38px;
   padding: 9px 10px;
   border: 1px solid #bbb;
   border-radius: 5px;
+}
+
+#vf-project {
+  height: 38px;
+  line-height: 38px;
 }
 
 .vf-close {
