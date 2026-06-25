@@ -103,8 +103,10 @@
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ ticket_id: cfg.ticketId, project_id: projectId, new_project_title: newProjectTitle })
     }).then(data => {
-      setStatus(data.message || 'Ticket exported successfully. Reloading…');
-      window.setTimeout(() => window.location.reload(), 1200);
+      setStatus(data.message || 'Ticket exported successfully. Redirecting…');
+      window.setTimeout(() => {
+        window.location.href = data.redirect || '/scp/tickets.php?queue=1';
+      }, 900);
     }).catch(err => {
       button.disabled = false;
       setStatus(err.message, true);

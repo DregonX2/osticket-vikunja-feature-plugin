@@ -96,6 +96,7 @@ class VikunjaFeatureRequestController {
         return array(
             'ok' => true,
             'message' => 'Ticket exported to Vikunja and resolved.',
+            'redirect' => $this->queueRedirectUrl(),
             'task' => $createdTask,
         );
     }
@@ -229,6 +230,11 @@ class VikunjaFeatureRequestController {
                 }
             }
         }
+    }
+
+    private function queueRedirectUrl() {
+        $base = defined('ROOT_PATH') ? ROOT_PATH : '/';
+        return $base . 'scp/tickets.php?queue=1';
     }
 
     private function ticketUrl($ticket) {
