@@ -53,8 +53,13 @@ class VikunjaFeatureRequestPluginConfig extends PluginConfig {
 
 class VikunjaFeatureRequestPlugin extends Plugin {
     public $config_class = 'VikunjaFeatureRequestPluginConfig';
+    private $instanceConfig;
 
     public function bootstrap() {
+        // osTicket side-loads plugin instance config only during bootstrap and
+        // clears it afterwards. Keep a reference for Ajax callbacks registered
+        // during this bootstrap cycle.
+        $this->instanceConfig = $this->getConfig();
         $this->registerRoutes();
         $this->injectStaffAssets();
     }
@@ -79,7 +84,7 @@ class VikunjaFeatureRequestPlugin extends Plugin {
         if ($css) {
             echo "\n<style id=\"vikunja-feature-request-css\">\n" . $css . "\n</style>\n";
         }
-        $buttonText = trim((string) $this->getConfig()->get('button_text')) ?: 'Move to Projects';
+        $buttonText = trim((string) $this->getPluginConfig()->get('button_text')) ?: 'Move to Projects';
         echo sprintf("<script>window.VIKUNJA_FEATURE_REQUEST = {ticketId:%d, ajaxBase:%s, buttonText:%s};</script>\n", (int) $_GET['id'], json_encode($this->getAjaxBaseUrl()), json_encode($buttonText));
         if ($js) {
             echo "<script id=\"vikunja-feature-request-js\">\n" . $js . "\n</script>\n";
@@ -96,8 +101,12 @@ class VikunjaFeatureRequestPlugin extends Plugin {
             return;
         }
 
-        $controller = new VikunjaFeatureRequestController($this->getConfig());
+        $controller = new VikunjaFeatureRequestController($this->getPluginConfig());
         $controller->dispatch($path);
         exit;
+    }
+
+    protected function getPluginConfig() {
+        return $this->instanceConfig ?: $this->getConfig();
     }
 }
